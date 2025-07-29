@@ -108,13 +108,26 @@ span.material-symbols-rounded {
   object-fit: cover;
   border-radius: 2px;
 }
-.chat .chat-details p {
+
+/* --- MODIFICATION START --- */
+/* The padding is now on the message-content container */
+.chat .chat-details .message-content {
+  padding: 0 50px 0 25px;
+  width: 100%;
+}
+/* The paragraph itself just handles text styling */
+.chat .chat-details .message-content p {
   white-space: pre-wrap;
   font-size: 1.05rem;
-  padding: 0 50px 0 25px;
   color: var(--text-color);
   word-break: break-word;
 }
+/* This selector works for both user and AI messages */
+.chat .chat-details p {
+    padding: 0 50px 0 25px;
+}
+/* --- MODIFICATION END --- */
+
 .chat .chat-details p.error {
   color: #e55865;
 }
@@ -231,7 +244,8 @@ span.material-symbols-rounded {
     height: 32px;
     width: 32px;
   }
-  .chat-container .chat p {
+  .chat-container .chat p,
+  .chat .chat-details .message-content { /* Added rule for mobile */
     padding: 0 20px;
   }
   .chat .chat-content:not(:has(.typing-animation), :has(.error)) span {
