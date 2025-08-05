@@ -1,75 +1,33 @@
-// StudyBuddy with Voice & Hardcoded Responses
-
 window.addEventListener("DOMContentLoaded", () => {
   const chatInput       = document.querySelector("#chat-input");
   const sendButton      = document.querySelector("#send-btn");
   const chatContainer   = document.querySelector(".chat-container");
   const themeButton     = document.querySelector("#theme-btn");
   const deleteButton    = document.querySelector("#delete-btn");
-  const voiceBtn        = document.querySelector("#voice-btn");
 
   let userText = null;
   let chatHistory = [];
+
+  // The API URL now points to your secure Vercel proxy function.
   const API_URL = "/api/proxy";
 
-  // Hardcoded responses
-  const hardcodedResponses = {
-    "what is studybuddy": "StudyBuddy is your AI-powered learning companion that helps you study smarter, not harder!",
-    "who created you": "I was built by a team of developers and AI researchers to support student learning.",
-    "hello": "Hi there! Ready to learn something new today?",
-    "how are you": "I'm just lines of code, but I'm always ready to help!",
-    "thank you": "You're welcome! 😊"
-  };
-
-  // Speech recognition
-  let recognition;
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    voiceBtn.addEventListener('click', () => {
-      recognition.start();
-      voiceBtn.classList.add('listening');
-    });
-
-    recognition.addEventListener('result', (event) => {
-      const transcript = event.results[0][0].transcript;
-      chatInput.value = transcript;
-      handleOutgoingChat();
-    });
-
-    recognition.addEventListener('end', () => {
-      voiceBtn.classList.remove('listening');
-    });
-  } else {
-    voiceBtn.disabled = true;
-    voiceBtn.title = 'Speech Recognition not supported';
-  }
-
-  // Speech synthesis
-  function speak(text) {
-    if (!('speechSynthesis' in window)) return;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'en-US';
-    window.speechSynthesis.speak(utter);
-  }
-
   const loadDataFromLocalStorage = () => {
+    // Load theme
     const themeColor = localStorage.getItem("themeColor");
     document.body.classList.toggle("light-mode", themeColor === "light_mode");
     themeButton.innerText = document.body.classList.contains("light-mode") ? "dark_mode" : "light_mode";
 
+    // Load chat history
     const savedChats = localStorage.getItem("all-chats");
     chatContainer.innerHTML = savedChats || `
       <div class="default-text">
         <h1>StudyBuddy Prototype</h1>
         <p>Learn with your study companion.<br> Your chat history will be displayed here.</p>
       </div>`;
-
+    
+    // Load message history for API calls
     chatHistory = JSON.parse(localStorage.getItem("chat-history")) || [];
+
     chatContainer.scrollTo(0, chatContainer.scrollHeight);
   };
 
@@ -82,10 +40,17 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const getChatResponse = async () => {
     const pElement = document.createElement("p");
+
+    // The fetch request is now simpler. It sends only the chat history to your proxy.
+    // No API key or Authorization header is needed on the frontend anymore.
     const requestOptions = {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatHistory })
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: chatHistory,
+      })
     };
 
     try {
@@ -94,11 +59,12 @@ window.addEventListener("DOMContentLoaded", () => {
         const errorData = await response.json();
         throw new Error(errorData.error.message || 'An unknown error occurred');
       }
-
+      
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullResponse = "";
 
+      // Append the new incoming chat bubble to the DOM
       const html = `
         <div class="chat-content">
           <div class="chat-details">
@@ -112,16 +78,21 @@ window.addEventListener("DOMContentLoaded", () => {
       chatContainer.querySelector(".typing-animation")?.remove();
       chatContainer.appendChild(incomingChatDiv);
       chatContainer.scrollTo(0, chatContainer.scrollHeight);
-
+      
+      // Read the stream from the proxy
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n\n");
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const data = line.substring(6);
-            if (data.trim() === "[DONE]") break;
+            if (data.trim() === "[DONE]") {
+              break;
+            }
             try {
               const parsed = JSON.parse(data);
               const content = parsed.choices[0]?.delta?.content || "";
@@ -130,20 +101,23 @@ window.addEventListener("DOMContentLoaded", () => {
                 pElement.textContent = fullResponse;
                 chatContainer.scrollTo(0, chatContainer.scrollHeight);
               }
-            } catch (e) {}
+            } catch (e) {
+                // Ignore parsing errors for incomplete JSON chunks
+            }
           }
         }
       }
-
-      speak(fullResponse);
+      // Add the full assistant response to the history
       chatHistory.push({ role: "assistant", content: fullResponse });
       localStorage.setItem("all-chats", chatContainer.innerHTML);
       localStorage.setItem("chat-history", JSON.stringify(chatHistory));
+
     } catch (error) {
       console.error(error);
       const errorPara = document.createElement("p");
       errorPara.classList.add("error");
       errorPara.textContent = `Error: ${error.message}`;
+      // Replace typing animation with error message
       const typingDiv = chatContainer.querySelector(".typing-animation")?.parentElement.parentElement.parentElement;
       if (typingDiv) {
         typingDiv.innerHTML = `<div class="chat-details"><img src="images/chatbot.jpg" alt="chatbot">${errorPara.outerHTML}</div>`;
@@ -176,8 +150,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
     chatInput.value = "";
     chatInput.style.height = `${initialInputHeight}px`;
-    chatHistory.push({ role: "user", content: userText });
 
+    // Add user message to history
+    chatHistory.push({ role: "user", content: userText });
+    
     const html = `
       <div class="chat-content">
         <div class="chat-details">
@@ -185,33 +161,17 @@ window.addEventListener("DOMContentLoaded", () => {
           <p>${userText}</p>
         </div>
       </div>`;
+    
     chatContainer.querySelector(".default-text")?.remove();
     const outgoingChatDiv = createChatElement(html, "outgoing");
     chatContainer.appendChild(outgoingChatDiv);
     chatContainer.scrollTo(0, chatContainer.scrollHeight);
+    
+    // Save state before getting response
     localStorage.setItem("all-chats", chatContainer.innerHTML);
     localStorage.setItem("chat-history", JSON.stringify(chatHistory));
 
-    const lowerCaseText = userText.toLowerCase().trim();
-    if (hardcodedResponses[lowerCaseText]) {
-      const response = hardcodedResponses[lowerCaseText];
-      const html = `
-        <div class="chat-content">
-          <div class="chat-details">
-            <img src="images/chatbot.jpg" alt="chatbot">
-            <p>${response}</p>
-          </div>
-        </div>`;
-      const incomingChatDiv = createChatElement(html, "incoming");
-      chatContainer.appendChild(incomingChatDiv);
-      chatContainer.scrollTo(0, chatContainer.scrollHeight);
-      speak(response);
-      chatHistory.push({ role: "assistant", content: response });
-      localStorage.setItem("all-chats", chatContainer.innerHTML);
-      localStorage.setItem("chat-history", JSON.stringify(chatHistory));
-    } else {
-      setTimeout(showTypingAnimation, 500);
-    }
+    setTimeout(showTypingAnimation, 500);
   };
 
   deleteButton.addEventListener("click", () => {

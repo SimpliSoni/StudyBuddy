@@ -186,7 +186,7 @@ span.material-symbols-rounded {
   height: 55px;
   width: 100%;
   border: none;
-  padding: 15px 45px 15px 20px;
+  padding: 15px 100px 15px 20px; /* increased right padding for buttons */
   color: var(--text-color);
   font-size: 1rem;
   border-radius: 4px;
@@ -198,24 +198,35 @@ span.material-symbols-rounded {
 .typing-textarea textarea::placeholder {
   color: var(--placeholder-color);
 }
-.typing-content span {
+.typing-textarea span {
+  position: absolute;
+  bottom: 0;
   width: 55px;
   height: 55px;
   display: flex;
-  border-radius: 4px;
-  font-size: 1.35rem;
   align-items: center;
   justify-content: center;
+  font-size: 1.35rem;
   color: var(--icon-color);
+  border-radius: 4px;
+  background: var(--incoming-chat-bg);
+  outline: 1px solid var(--incoming-chat-border);
 }
-.typing-textarea span {
-  position: absolute;
+/* Send button (rightmost) */
+.typing-textarea #send-btn {
   right: 0;
-  bottom: 0;
-  visibility: hidden;
-}
-.typing-textarea textarea:valid ~ span {
+  cursor: pointer;
   visibility: visible;
+}
+/* Voice button (to the left of send) */
+.typing-textarea #voice-btn {
+  right: 60px;
+  cursor: pointer;
+  visibility: visible;
+}
+/* Hover effect for controls */
+.typing-textarea span:hover {
+  background: var(--icon-hover-bg);
 }
 .typing-controls {
   display: flex;
@@ -229,7 +240,7 @@ span.material-symbols-rounded {
 .typing-controls span:hover {
   background: var(--icon-hover-bg);
 }
-/* Reponsive Media Query */
+/* Responsive Media Query */
 @media screen and (max-width: 600px) {
   .default-text h1 {
     font-size: 2.3rem;
@@ -245,7 +256,7 @@ span.material-symbols-rounded {
     width: 32px;
   }
   .chat-container .chat p,
-  .chat .chat-details .message-content { /* Added rule for mobile */
+  .chat .chat-details .message-content {
     padding: 0 20px;
   }
   .chat .chat-content:not(:has(.typing-animation), :has(.error)) span {
@@ -256,7 +267,7 @@ span.material-symbols-rounded {
   }
   .typing-textarea textarea {
     height: 45px;
-    padding: 10px 40px 10px 10px;
+    padding: 10px 80px 10px 10px;
   }
   .typing-content span {
     height: 45px;
