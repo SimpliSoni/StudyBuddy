@@ -33,10 +33,6 @@ export default async function handler(req) {
         model: 'gpt-5-nano', // Using the specified gpt-5-nano model
         messages: messages,
         stream: true,
-        prompt: {
-          id: "pmpt_689c3ab2c4a881938b4d6744f1fbd56706a94ab96827d860",
-          version: "2"
-        }
       }),
     };
 
