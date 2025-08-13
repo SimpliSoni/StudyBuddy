@@ -3,6 +3,8 @@ export const config = {
   runtime: 'edge', // Use the Vercel Edge Runtime for speed and streaming
 };
 
+import OpenAI from 'openai';
+
 export default async function handler(req) {
   // We only want to handle POST requests
   if (req.method !== 'POST') {
@@ -13,46 +15,53 @@ export default async function handler(req) {
     // Extract the 'messages' from the request body sent by your frontend.
     const { messages } = await req.json();
 
-    // ⛔️ IMPORTANT: Do NOT paste your API key here.
-    // Set your API key as an Environment Variable named OPENAI_API_KEY
-    // in your Vercel project settings dashboard.
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Initialize the OpenAI client
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
-    if (!apiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       return new Response(JSON.stringify({ error: 'API key not configured on the server' }), { status: 500 });
     }
 
-    // Prepare the request to send to the OpenAI API.
-    const openaiRequest = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+    // Create the streaming response with the specified prompt ID
+    const stream = await client.chat.completions.create({
+      model: 'gpt-5-nano', // Using the specified gpt-5-nano model
+      messages: messages,
+      stream: true,
+      prompt: {
+        id: "pmpt_689c3ab2c4a881938b4d6744f1fbd56706a94ab96827d860",
+        version: "2"
+      }
+    });
+
+    // Convert the stream to a readable stream for the frontend
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            const data = encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`);
+            controller.enqueue(data);
+          }
+        }
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
       },
-      body: JSON.stringify({
-        model: 'gpt-4o', // ✨ Using the modern and more capable gpt-4o model.
-        messages: messages, // Pass along the chat history
-        stream: true,       // Enable streaming responses
-      }),
-    };
+    });
 
-    // Make the call to the OpenAI API.
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', openaiRequest);
-
-    // If the request to OpenAI fails, return an error.
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
-      return new Response(JSON.stringify(errorData), { status: openaiResponse.status });
-    }
-    
-    // Return the streaming response from OpenAI directly to our frontend.
-    return new Response(openaiResponse.body, {
+    // Return the streaming response
+    return new Response(readable, {
       headers: {
         'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       },
     });
 
   } catch (error) {
+    console.error('OpenAI API error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
